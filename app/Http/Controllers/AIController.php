@@ -11,7 +11,6 @@ class AIController extends Controller
 {
     /**
      * Chatbot IA Polyvalent via Groq
-     * Modèle actuel : Llama 3.3 70B (Dernière version stable)
      */
     public function chat(Request $request)
     {
@@ -25,8 +24,6 @@ class AIController extends Controller
             ]);
         }
 
-        // MODÈLE ACTUALISÉ (Llama 3.3 est la version actuelle recommandée)
-        // Si cela échoue à l'avenir, essayez : 'llama-3.1-8b-instant'
         $model = 'llama-3.3-70b-versatile'; 
 
         try {
@@ -37,7 +34,6 @@ class AIController extends Controller
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => 'Tu es une intelligence artificielle avancée, amicale et extrêmement polyvalente. Tu peux converser sur n\'importe quel sujet : programmation, rédaction, sciences, culture générale, conseils, humour ou philosophie. Adopte un ton naturel et engageant. Réponds toujours en français, sauf si l\'utilisateur t\'adresse la parole dans une autre langue.'],
-                    
                     ['role' => 'user', 'content' => $request->message],
                 ],
                 'temperature' => 0.7,
@@ -49,7 +45,6 @@ class AIController extends Controller
                 return response()->json(['success' => true, 'message' => $reply]);
             }
 
-            // Gestion des erreurs API
             Log::error('Groq API error', [
                 'status' => $response->status(),
                 'body' => $response->body(),
@@ -72,42 +67,153 @@ class AIController extends Controller
     }
 
     /**
-     * Prédiction du succès d’un projet
-     * On utilise un modèle plus léger et très stable pour l'analyse de données (JSON)
+     * Prédiction Live (Progressive)
+     * Commence à 0% et augmente à chaque champ rempli.
+     * Utilisation d'un algorithme local pour la rapidité (pas d'appel API ici).
      */
     public function predictSuccess(Request $request)
+    {
+        // IMPORTANT : On change 'required' par 'nullable' pour accepter les formulaires incomplets
+        $request->validate([
+            'title' => 'nullable|string',
+            'description' => 'nullable|string',
+            'category' => 'nullable|string',
+            'funding_goal' => 'nullable|numeric',
+            'deadline' => 'nullable|date',
+        ]);
+
+        $score = 0; // Le score commence à 0
+        $suggestions = [];
+        $strengths = [];
+
+        // 1. Vérification du TITRE (+25 points max)
+        if (!empty($request->title)) {
+            $score += 15; // Points de base pour l'existence
+            if (strlen($request->title) > 10) {
+                $score += 10;
+                $strengths[] = "Titre présent et de bonne longueur";
+            } else {
+                $suggestions[] = "Le titre est un peu court (essayez 10+ caractères)";
+            }
+        } else {
+            $suggestions[] = "Ajoutez un titre à votre projet";
+        }
+
+        // 2. Vérification de la DESCRIPTION (+35 points max)
+        if (!empty($request->description)) {
+            $score += 10; // Points de base
+            $len = strlen($request->description);
+            
+            if ($len > 200) { $score += 10; }
+            if ($len > 500) { $score += 15; } 
+            
+            if ($len > 500) {
+                $strengths[] = "Description détaillée";
+            } else {
+                $suggestions[] = "Décrivez plus votre projet (min 500 caractères)";
+            }
+        } else {
+            $suggestions[] = "La description est manquante";
+        }
+
+        // 3. Vérification de la CATÉGORIE (+10 points)
+        if (!empty($request->category)) {
+            $score += 10;
+            $strengths[] = "Catégorie définie";
+        } else {
+            $suggestions[] = "Choisissez une catégorie";
+        }
+
+        // 4. Vérification de l'OBJECTIF FINANCIER (+20 points max)
+        if (!empty($request->funding_goal)) {
+            $score += 10; // Points de base
+            
+            // Logique : objectif modeste = plus facile à atteindre
+            if ($request->funding_goal <= 5000) { 
+                $score += 10; 
+                $strengths[] = "Objectif réaliste";
+            } elseif ($request->funding_goal > 20000) {
+                $suggestions[] = "Objectif très élevé, risque d'échec";
+            } else {
+                $score += 5; // Moyen
+            }
+        } else {
+            $suggestions[] = "Définissez un objectif financier";
+        }
+
+        // 5. Vérification de la DATE LIMITE (+10 points max)
+        if (!empty($request->deadline)) {
+            $score += 5; // Points de base
+            
+            try {
+                $daysLeft = now()->diffInDays($request->deadline, false);
+                
+                if ($daysLeft >= 30 && $daysLeft <= 60) {
+                    $score += 5;
+                    $strengths[] = "Durée de campagne idéale";
+                } elseif ($daysLeft < 15) {
+                    $suggestions[] = "Délai trop court (min 30j conseillé)";
+                } elseif ($daysLeft > 90) {
+                    $suggestions[] = "Délai très long (perte d'urgence)";
+                }
+            } catch (\Exception $e) {
+                // Ignore date errors
+            }
+        } else {
+            $suggestions[] = "Fixez une date de fin de campagne";
+        }
+
+        // --- FINALISATION DU SCORE ---
+
+        // On s'assure que le score reste entre 0 et 100
+        $score = min(100, max(0, $score));
+
+        // Détermination du niveau textuel
+        $level = 'Commencez...';
+        if ($score > 10) $level = 'Ébauche';
+        if ($score > 30) $level = 'En cours';
+        if ($score > 50) $level = 'Prometteur';
+        if ($score > 70) $level = 'Bon';
+        if ($score > 90) $level = 'Excellent !';
+
+        return response()->json([
+            'success' => true,
+            'analysis' => [
+                'score' => $score,
+                'level' => $level,
+                'strengths' => $strengths ?: ['Encore aucun point fort'],
+                'weaknesses' => [], // On utilise surtout les suggestions
+                'suggestions' => $suggestions,
+                'analysis' => "Score actuel : $score%."
+            ]
+        ]);
+    }
+
+    /**
+     * Nouvelle méthode : Analyse approfondie par l'IA (Uniquement à la fin)
+     * Cette méthode est appelée quand l'utilisateur clique sur "Analyser avec l'IA"
+     * pour avoir de vrais conseils profonds, pas juste un score.
+     */
+    public function deepAnalyze(Request $request)
     {
         $request->validate([
             'title' => 'required|string',
             'description' => 'required|string',
-            'short_description' => 'nullable|string',
             'category' => 'nullable|string',
             'funding_goal' => 'required|numeric',
             'deadline' => 'required|date',
         ]);
 
-        $daysLeft = now()->diffInDays($request->deadline, false);
-        $descLen = strlen($request->description);
-        $fallback = $this->localPrediction($request, $daysLeft, $descLen);
-
         $apiKey = env('GROQ_API_KEY');
         if (empty($apiKey)) {
-            return response()->json(['success' => true, 'analysis' => $fallback]);
+            return response()->json(['success' => false, 'message' => 'Clé API manquante']);
         }
 
-        // MODÈLE STABLE POUR L'ANALYSE (8b-instant est très fiable pour le JSON)
         $model = 'llama-3.1-8b-instant';
         
-        $systemPrompt = "Tu es un expert en analyse de projets de crowdfunding étudiant. Retourne UNIQUEMENT un objet JSON valide, sans markdown, sans backticks, avec ces clés : score (0-100), level (faible/moyen/bon/excellent), strengths (array 2-4 strings), weaknesses (array 2-4 strings), suggestions (array 3-5 strings), analysis (courte phrase). Réponds en français.";
+        $systemPrompt = "Tu es un expert en crowdfunding. Analyse ce projet et donne un score réaliste (0-100). Retourne UN JSON avec: score, level, strengths (array), weaknesses (array), suggestions (array), analysis (string).";
 
-        $userMsg = "Analyse ce projet :
-Titre: {$request->title}
-Catégorie: " . ($request->category ?? 'Non spécifiée') . "
-Description courte: " . ($request->short_description ?? '') . "
-Description: " . substr($request->description, 0, 1200) . "
-Objectif: {$request->funding_goal} TND
-Jours restants: {$daysLeft}
-Longueur description: {$descLen} caractères";
+        $userMsg = "Projet: {$request->title}, Desc: {$request->description}, Goal: {$request->funding_goal}, Deadline: {$request->deadline}";
 
         try {
             $response = Http::withHeaders([
@@ -119,7 +225,7 @@ Longueur description: {$descLen} caractères";
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $userMsg],
                 ],
-                'temperature' => 0.4,
+                'temperature' => 0.5,
                 'max_tokens' => 800,
             ]);
 
@@ -132,47 +238,10 @@ Longueur description: {$descLen} caractères";
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Groq predict exception: ' . $e->getMessage());
+            Log::error('Deep analyze error: ' . $e->getMessage());
         }
 
-        return response()->json(['success' => true, 'analysis' => $fallback]);
-    }
-
-    /**
-     * Fallback local (analyse sans API)
-     */
-    private function localPrediction($request, int $daysLeft, int $descLen): array
-    {
-        $score = 45;
-        $strengths = [];
-        $weaknesses = [];
-        $suggestions = [];
-
-        if ($descLen > 500) { $score += 15; $strengths[] = "Description détaillée"; }
-        else { $score -= 10; $weaknesses[] = "Description trop courte"; $suggestions[] = "Ajoutez plus de détails (min 500 caractères)"; }
-
-        if ($request->funding_goal <= 5000) { $score += 10; $strengths[] = "Objectif accessible"; }
-        elseif ($request->funding_goal > 15000) { $score -= 10; $weaknesses[] = "Objectif élevé"; $suggestions[] = "Réduisez l'objectif à moins de 10 000 TND"; }
-
-        if ($daysLeft >= 30 && $daysLeft <= 60) { $score += 10; $strengths[] = "Durée idéale (30-60 jours)"; }
-        elseif ($daysLeft < 15) { $score -= 15; $weaknesses[] = "Délai trop court"; $suggestions[] = "Allongez à au moins 30 jours"; }
-
-        if (!empty($request->category)) { $score += 5; $strengths[] = "Catégorie définie"; }
-        else { $weaknesses[] = "Catégorie manquante"; $suggestions[] = "Choisissez une catégorie"; }
-
-        $suggestions[] = "Ajoutez une vidéo de présentation";
-        $suggestions[] = "Partagez sur les réseaux sociaux";
-        $score = min(100, max(10, $score));
-        $level = $score >= 75 ? 'excellent' : ($score >= 60 ? 'bon' : ($score >= 40 ? 'moyen' : 'faible'));
-
-        return [
-            'score' => $score,
-            'level' => $level,
-            'strengths' => $strengths ?: ['Potentiel identifiable'],
-            'weaknesses' => $weaknesses ?: ['Quelques points à améliorer'],
-            'suggestions' => $suggestions,
-            'analysis' => "Score estimé localement : $score% – Projet $level."
-        ];
+        return response()->json(['success' => false, 'message' => 'Erreur IA']);
     }
 
     public function saveAnalysis(Request $request, Project $project)

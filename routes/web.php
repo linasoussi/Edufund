@@ -98,4 +98,5 @@ Route::middleware('auth')->group(function () {
     Route::post('/ai/chat', [AIController::class, 'chat'])->name('ai.chat');
     Route::post('/ai/predict', [AIController::class, 'predictSuccess'])->name('ai.predict');
     Route::post('/ai/save/{project}', [AIController::class, 'saveAnalysis'])->name('ai.save');
+    
 });
