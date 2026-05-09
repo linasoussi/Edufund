@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Gate;   // ← AJOUTÉ
 
+// Gestion des Projets Étudiants
 class ProjectController extends Controller
 {
-    public function index()
+     public function index()
     {
         $projects = Project::with('user')
             ->published()
