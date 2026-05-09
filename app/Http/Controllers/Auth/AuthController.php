@@ -11,7 +11,7 @@ use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
-    public function showLoginnn()
+    public function showLogin()
     {
         return view('auth.login');
     }
@@ -34,7 +34,7 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'Email ou mot de passe incorrect.',
+            'email' => 'Email ou mottt de passe incorrect.',
         ])->onlyInput('email');
     }
 
