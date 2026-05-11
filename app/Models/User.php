@@ -15,7 +15,7 @@ class User extends Authenticatable
         'name', 'email', 'password', 'role', 'avatar', 'phone', 'bio',
         'university', 'field_of_study', 'company', 'website', 'linkedin', 'is_active',
     ];
-
+//les champs qu’on autorise à remplir automatiquement.
     protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [

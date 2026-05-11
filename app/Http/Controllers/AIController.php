@@ -12,11 +12,11 @@ class AIController extends Controller
     /**
      * Chatbot IA Polyvalent via Groq
      */
-    public function chat(Request $request)
+    public function chat(Request $request) //envoyer un message a groq
     {
         $request->validate(['message' => 'required|string|max:2000']);
 
-        $apiKey = env('GROQ_API_KEY');
+        $apiKey = env('GROQ_API_KEY');   //Laravel lit la variable dans le fichier .env
         if (empty($apiKey)) {
             return response()->json([
                 'success' => true,
@@ -24,10 +24,10 @@ class AIController extends Controller
             ]);
         }
 
-        $model = 'llama-3.3-70b-versatile'; 
+        $model = 'llama-3.3-70b-versatile';    //Tu demandes à Groq d’utiliser ce modèle.
 
         try {
-            $response = Http::withHeaders([
+            $response = Http::withHeaders([                 //Ici Laravel envoie une requête POST à l’API de Groq.
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type' => 'application/json',
             ])->post('https://api.groq.com/openai/v1/chat/completions', [
@@ -75,7 +75,7 @@ class AIController extends Controller
     {
         // IMPORTANT : On change 'required' par 'nullable' pour accepter les formulaires incomplets
         $request->validate([
-            'title' => 'nullable|string',
+            'title' => 'nullable|string',      //on accepte des champs vides nulllable 
             'description' => 'nullable|string',
             'category' => 'nullable|string',
             'funding_goal' => 'nullable|numeric',
@@ -175,8 +175,8 @@ class AIController extends Controller
         if ($score > 50) $level = 'Prometteur';
         if ($score > 70) $level = 'Bon';
         if ($score > 90) $level = 'Excellent !';
-
-        return response()->json([
+//transforme un tableau PHP en JSON.
+        return response()->json([      
             'success' => true,
             'analysis' => [
                 'score' => $score,

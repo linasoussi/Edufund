@@ -1,5 +1,5 @@
 <?php
-
+//un système de Policies (politiques d'autorisation) pour contrôler qui peut faire quoi
 namespace App\Policies;
 
 use App\Models\Project;
