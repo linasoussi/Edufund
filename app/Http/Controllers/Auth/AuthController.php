@@ -34,7 +34,7 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'Email ou mottt de passe incorrect.',
+            'email' => 'Email ou mot de passe est incorrect.',
         ])->onlyInput('email');
     }
 
@@ -68,7 +68,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('dashboard')->with('success', 'Bienvenue sur EduFund ! 🎉');
+        return redirect()->route('dashboard')->with('success', 'Bienvenue dans EduFund ! 🎉');
     }
 
     public function logout(Request $request)
