@@ -55,7 +55,7 @@ jobs:
         run: php -r "file_exists('.env') || copy('.env.example', '.env');"
 
       - name: Installer les dépendances
-        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+        run: composer install --no-ansi --no-interaction --no-scripts --prefer-dist
 
       - name: Générer APP_KEY
         run: php artisan key:generate
